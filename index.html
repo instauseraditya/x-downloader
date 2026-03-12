@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>X Video Downloader</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <div class="logo">
+          <div class="logo-icon">𝕏</div>
+          <div class="logo-text">VIDEO<span>GET</span></div>
+        </div>
+        <p class="tagline">Powered by yt-dlp · Railway backend · 100% free</p>
+      </div>
+
+      <div class="card">
+        <label class="label">Paste X / Twitter post URL</label>
+        <div class="input-row">
+          <input
+            class="url-input"
+            id="urlInput"
+            type="url"
+            placeholder="https://x.com/user/status/123456789..."
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <button class="fetch-btn" id="fetchBtn" onclick="fetchVideo()">
+            ⬇ FETCH
+          </button>
+        </div>
+
+        <div class="status" id="status"></div>
+        <div class="result" id="result"></div>
+
+        <div class="config-notice">
+          ⚙️ <strong>Backend URL:</strong> Replace
+          <code>YOUR_RAILWAY_URL</code> in the script below with your Railway
+          app URL after deploying. Example:
+          <code>https://x-downloader.up.railway.app</code>
+        </div>
+      </div>
+
+      <div class="steps-section">
+        <div class="steps-title">How to use</div>
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-text">Open the X post with a video</div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-text">Copy the post URL from your browser</div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div class="step-text">Paste it above and click Fetch</div>
+          </div>
+          <div class="step">
+            <div class="step-num">4</div>
+            <div class="step-text">Choose quality and download</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // ⬇️ CHANGE THIS to your Railway URL after deploying
+      const BACKEND_URL = "https://web-production-8ae0d.up.railway.app";
+
+      function setStatus(type, msg) {
+        const el = document.getElementById("status");
+        el.className = "status " + type;
+        el.innerHTML =
+          type === "loading"
+            ? `<div class="spinner"></div><span>${msg}</span>`
+            : `<span>${type === "error" ? "✕" : "✓"}</span><span>${msg}</span>`;
+      }
+
+      function formatSize(bytes) {
+        if (!bytes) return "Unknown size";
+        const mb = bytes / 1024 / 1024;
+        return mb > 1
+          ? mb.toFixed(1) + " MB"
+          : (bytes / 1024).toFixed(0) + " KB";
+      }
+
+      function formatDuration(secs) {
+        if (!secs) return null;
+        const m = Math.floor(secs / 60),
+          s = secs % 60;
+        return `${m}:${String(s).padStart(2, "0")}`;
+      }
+
+      function renderResult(data) {
+        const result = document.getElementById("result");
+        const dur = formatDuration(data.duration);
+
+        const qualities = (data.videos || [])
+          .map(
+            (v, i) => `
+      <div class="quality-item">
+        <div class="q-left">
+          <span class="q-badge">${v.label || v.quality}</span>
+          <span class="q-meta">
+            <strong>${v.quality}</strong> · ${v.ext?.toUpperCase() || "MP4"} · ${formatSize(v.filesize)}
+          </span>
+        </div>
+        <a class="dl-btn" href="${v.url}" target="_blank" rel="noopener" download>
+          ↓ Download
+        </a>
+      </div>
+    `,
+          )
+          .join("");
+
+        result.innerHTML = `
+      <div class="tweet-preview">
+        ${data.thumbnail ? `<img class="tweet-thumb" src="${data.thumbnail}" alt="thumbnail" onerror="this.style.display='none'">` : ""}
+        <div class="tweet-body">
+          <div class="avatar"></div>
+          <div class="tweet-meta">
+            <div class="tweet-author">
+              ${data.author || "Unknown"}
+              <span class="tweet-handle">${data.handle ? "@" + data.handle : ""}</span>
+              ${dur ? `<span class="tweet-duration">${dur}</span>` : ""}
+            </div>
+            <div class="tweet-text">${data.text || ""}</div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <span class="label" style="margin-bottom:0.6rem">Available Qualities</span>
+        <div class="quality-list">${qualities || '<div style="padding:1rem;color:#555;font-size:0.75rem;text-align:center">No video qualities found.</div>'}</div>
+      </div>
+    `;
+
+        result.classList.add("visible");
+      }
+
+      async function fetchVideo() {
+        const url = document.getElementById("urlInput").value.trim();
+        const btn = document.getElementById("fetchBtn");
+
+        if (!url)
+          return setStatus("error", "Please paste an X or Twitter URL first.");
+
+        const valid =
+          /^https?:\/\/(www\.)?(twitter\.com|x\.com)\/.+\/status\/\d+/.test(
+            url,
+          );
+        if (!valid)
+          return setStatus(
+            "error",
+            "That doesn't look like a valid X/Twitter post URL.",
+          );
+
+        if (BACKEND_URL === "YOUR_RAILWAY_URL") {
+          return setStatus(
+            "error",
+            "Set your Railway backend URL in the script first. See setup instructions.",
+          );
+        }
+
+        document.getElementById("result").classList.remove("visible");
+        btn.disabled = true;
+        setStatus("loading", "Fetching video info via yt-dlp...");
+
+        try {
+          const res = await fetch(
+            `${BACKEND_URL}/api/info?url=${encodeURIComponent(url)}`,
+          );
+          const data = await res.json();
+
+          if (!res.ok || data.error) {
+            setStatus("error", data.error || "Failed to fetch video info.");
+            return;
+          }
+
+          document.getElementById("status").className = "status";
+          renderResult(data);
+        } catch (err) {
+          setStatus(
+            "error",
+            "Could not reach the backend. Is your Railway app running?",
+          );
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
+      document.getElementById("urlInput").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") fetchVideo();
+      });
+    </script>
+  </body>
+</html>
