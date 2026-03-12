@@ -1,477 +1,446 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>X Video Downloader</title>
-    <link
-      href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&display=swap"
-      rel="stylesheet"
-    />
-  </head>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  
-    :root {
-      --black: #0a0a0a;
-      --white: #f5f5f0;
-      --accent: #e8ff3a;
-      --mid: #1a1a1a;
-      --border: #2a2a2a;
-      --muted: #555;
-      --red: #ff4444;
-      --green: #3aff8a;
-    }
-  
-    body {
-      background: var(--black);
-      color: var(--white);
-      font-family: 'DM Mono', monospace;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 2rem;
-    }
-  
-    body::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background-image:
-        linear-gradient(rgba(232,255,58,0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(232,255,58,0.03) 1px, transparent 1px);
-      background-size: 40px 40px;
-      pointer-events: none;
-    }
-  
-    .container {
-      position: relative;
-      z-index: 1;
-      width: 100%;
-      max-width: 660px;
-    }
-  
-    .header {
-      text-align: center;
-      margin-bottom: 2.5rem;
-    }
-  
-    .logo {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.75rem;
-      margin-bottom: 0.75rem;
-    }
-  
-    .logo-icon {
-      width: 46px; height: 46px;
-      background: var(--accent);
-      border-radius: 10px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1.4rem; font-weight: 900; color: #000;
-      animation: glow 3s ease-in-out infinite;
-    }
-  
-    @keyframes glow {
-      0%,100% { box-shadow: 0 0 0 0 rgba(232,255,58,0.5); }
-      50% { box-shadow: 0 0 20px 6px rgba(232,255,58,0.15); }
-    }
-  
-    .logo-text {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 2.4rem;
-      letter-spacing: 0.05em;
-    }
-  
-    .logo-text span { color: var(--accent); }
-    .tagline { font-size: 0.7rem; color: var(--muted); letter-spacing: 0.18em; text-transform: uppercase; }
-  
-    /* Card */
-    .card {
-      background: var(--mid);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 2rem;
-      position: relative;
-      overflow: hidden;
-    }
-  
-    .card::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0; height: 2px;
-      background: linear-gradient(90deg, transparent, var(--accent), transparent);
-    }
-  
-    .label {
-      font-size: 0.62rem;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 0.5rem;
-      display: block;
-    }
-  
-    .input-row {
-      display: flex;
-      gap: 0.75rem;
-      margin-bottom: 1.25rem;
-    }
-  
-    .url-input {
-      flex: 1;
-      background: var(--black);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 0.85rem 1rem;
-      color: var(--white);
-      font-family: 'DM Mono', monospace;
-      font-size: 0.78rem;
-      outline: none;
-      transition: border-color 0.2s, box-shadow 0.2s;
-    }
-  
-    .url-input::placeholder { color: #444; }
-    .url-input:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(232,255,58,0.07);
-    }
-  
-    .fetch-btn {
-      background: var(--accent);
-      color: #000;
-      border: none;
-      border-radius: 8px;
-      padding: 0.85rem 1.4rem;
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 1.05rem;
-      letter-spacing: 0.08em;
-      cursor: pointer;
-      transition: transform 0.15s, opacity 0.15s;
-      white-space: nowrap;
-    }
-  
-    .fetch-btn:hover { opacity: 0.88; transform: translateY(-1px); }
-    .fetch-btn:active { transform: none; }
-    .fetch-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
-  
-    /* Status bar */
-    .status {
-      display: none;
-      align-items: center;
-      gap: 0.6rem;
-      font-size: 0.73rem;
-      padding: 0.75rem 1rem;
-      border-radius: 8px;
-      margin-bottom: 1.25rem;
-      border: 1px solid transparent;
-    }
-  
-    .status.loading { display: flex; background: rgba(232,255,58,0.04); border-color: rgba(232,255,58,0.12); color: var(--accent); }
-    .status.error   { display: flex; background: rgba(255,68,68,0.06); border-color: rgba(255,68,68,0.18); color: var(--red); }
-    .status.success { display: flex; background: rgba(58,255,138,0.04); border-color: rgba(58,255,138,0.12); color: var(--green); }
-  
-    .spinner {
-      width: 14px; height: 14px;
-      border: 2px solid rgba(232,255,58,0.2);
-      border-top-color: var(--accent);
-      border-radius: 50%;
-      animation: spin 0.7s linear infinite;
-      flex-shrink: 0;
-    }
-  
-    @keyframes spin { to { transform: rotate(360deg); } }
-  
-    /* Result */
-    .result { display: none; flex-direction: column; gap: 1.25rem; animation: up 0.3s ease; }
-    .result.visible { display: flex; }
-  
-    @keyframes up {
-      from { opacity: 0; transform: translateY(8px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-  
-    /* Tweet preview */
-    .tweet-preview {
-      background: var(--black);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      overflow: hidden;
-    }
-  
-    .tweet-thumb {
-      width: 100%;
-      max-height: 200px;
-      object-fit: cover;
-      display: block;
-      background: #111;
-    }
-  
-    .tweet-body {
-      padding: 1rem;
-      display: flex;
-      gap: 0.75rem;
-    }
-  
-    .avatar {
-      width: 38px; height: 38px;
-      border-radius: 50%;
-      background: var(--border);
-      flex-shrink: 0;
-      overflow: hidden;
-    }
-  
-    .avatar img { width: 100%; height: 100%; object-fit: cover; }
-  
-    .tweet-meta { flex: 1; min-width: 0; }
-  
-    .tweet-author {
-      font-size: 0.78rem;
-      font-weight: 500;
-      margin-bottom: 0.2rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-  
-    .tweet-handle { color: var(--muted); font-weight: 300; font-size: 0.72rem; }
-  
-    .tweet-duration {
-      font-size: 0.65rem;
-      color: var(--accent);
-      background: rgba(232,255,58,0.08);
-      border: 1px solid rgba(232,255,58,0.15);
-      padding: 0.1rem 0.4rem;
-      border-radius: 4px;
-      margin-left: auto;
-    }
-  
-    .tweet-text {
-      font-size: 0.7rem;
-      color: #777;
-      line-height: 1.5;
-      overflow: hidden;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-    }
-  
-    /* Quality list */
-    .quality-list { display: flex; flex-direction: column; gap: 0.5rem; }
-  
-    .quality-item {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background: var(--black);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 0.85rem 1rem;
-      transition: border-color 0.2s;
-    }
-  
-    .quality-item:hover { border-color: #3a3a3a; }
-  
-    .q-left { display: flex; align-items: center; gap: 0.75rem; }
-  
-    .q-badge {
-      background: rgba(232,255,58,0.1);
-      border: 1px solid rgba(232,255,58,0.2);
-      color: var(--accent);
-      font-size: 0.62rem;
-      font-weight: 500;
-      padding: 0.2rem 0.55rem;
-      border-radius: 4px;
-      letter-spacing: 0.05em;
-      min-width: 38px;
-      text-align: center;
-    }
-  
-    .q-meta { font-size: 0.68rem; color: var(--muted); }
-    .q-meta strong { color: #aaa; }
-  
-    .dl-btn {
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
-      background: transparent;
-      border: 1px solid var(--accent);
-      color: var(--accent);
-      padding: 0.45rem 1rem;
-      border-radius: 7px;
-      font-family: 'DM Mono', monospace;
-      font-size: 0.7rem;
-      cursor: pointer;
-      text-decoration: none;
-      transition: background 0.15s, color 0.15s;
-    }
-  
-    .dl-btn:hover { background: var(--accent); color: #000; }
-  
-    /* Backend config notice */
-    .config-notice {
-      margin-top: 1.5rem;
-      padding: 1rem;
-      background: rgba(232,255,58,0.04);
-      border: 1px solid rgba(232,255,58,0.12);
-      border-radius: 10px;
-      font-size: 0.68rem;
-      color: #888;
-      line-height: 1.7;
-    }
-  
-    .config-notice strong { color: var(--accent); }
-  
-    .config-notice code {
-      background: rgba(255,255,255,0.06);
-      padding: 0.1rem 0.4rem;
-      border-radius: 4px;
-      font-size: 0.65rem;
-      color: #ccc;
-    }
-  
-    /* Steps */
-    .steps-section { margin-top: 2rem; padding-top: 1.75rem; border-top: 1px solid var(--border); }
-    .steps-title { font-size: 0.62rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); margin-bottom: 1rem; text-align: center; }
-  
-    .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
-  
-    .step { text-align: center; }
-    .step-num {
-      width: 28px; height: 28px;
-      border: 1px solid var(--border);
-      border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 0.68rem; color: var(--accent);
-      margin: 0 auto 0.4rem;
-    }
-    .step-text { font-size: 0.62rem; color: var(--muted); line-height: 1.4; }
-  </style>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>X Video Downloader</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  <body>
-    <div class="container">
-      <div class="header">
-        <div class="logo">
-          <div class="logo-icon">𝕏</div>
-          <div class="logo-text">VIDEO<span>GET</span></div>
-        </div>
-        <p class="tagline">Powered by yt-dlp · Railway backend · 100% free</p>
-      </div>
+  :root {
+    --black: #0a0a0a;
+    --white: #f5f5f0;
+    --accent: #e8ff3a;
+    --mid: #1a1a1a;
+    --border: #2a2a2a;
+    --muted: #555;
+    --red: #ff4444;
+    --green: #3aff8a;
+  }
 
-      <div class="card">
-        <label class="label">Paste X / Twitter post URL</label>
-        <div class="input-row">
-          <input
-            class="url-input"
-            id="urlInput"
-            type="url"
-            placeholder="https://x.com/user/status/123456789..."
-            autocomplete="off"
-            spellcheck="false"
-          />
-          <button class="fetch-btn" id="fetchBtn" onclick="fetchVideo()">
-            ⬇ FETCH
-          </button>
-        </div>
+  body {
+    background: var(--black);
+    color: var(--white);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+  }
 
-        <div class="status" id="status"></div>
-        <div class="result" id="result"></div>
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(232,255,58,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(232,255,58,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
 
-        <div class="config-notice">
-          ⚙️ <strong>Backend URL:</strong> Replace
-          <code>YOUR_RAILWAY_URL</code> in the script below with your Railway
-          app URL after deploying. Example:
-          <code>https://x-downloader.up.railway.app</code>
-        </div>
-      </div>
+  .container {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 660px;
+  }
 
-      <div class="steps-section">
-        <div class="steps-title">How to use</div>
-        <div class="steps">
-          <div class="step">
-            <div class="step-num">1</div>
-            <div class="step-text">Open the X post with a video</div>
-          </div>
-          <div class="step">
-            <div class="step-num">2</div>
-            <div class="step-text">Copy the post URL from your browser</div>
-          </div>
-          <div class="step">
-            <div class="step-num">3</div>
-            <div class="step-text">Paste it above and click Fetch</div>
-          </div>
-          <div class="step">
-            <div class="step-num">4</div>
-            <div class="step-text">Choose quality and download</div>
-          </div>
-        </div>
-      </div>
+  .header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+  }
+
+  .logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .logo-icon {
+    width: 46px; height: 46px;
+    background: var(--accent);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem; font-weight: 900; color: #000;
+    animation: glow 3s ease-in-out infinite;
+  }
+
+  @keyframes glow {
+    0%,100% { box-shadow: 0 0 0 0 rgba(232,255,58,0.5); }
+    50% { box-shadow: 0 0 20px 6px rgba(232,255,58,0.15); }
+  }
+
+  .logo-text {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2.4rem;
+    letter-spacing: 0.05em;
+  }
+
+  .logo-text span { color: var(--accent); }
+  .tagline { font-size: 0.7rem; color: var(--muted); letter-spacing: 0.18em; text-transform: uppercase; }
+
+  /* Card */
+  .card {
+    background: var(--mid);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 2rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  }
+
+  .label {
+    font-size: 0.62rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.5rem;
+    display: block;
+  }
+
+  .input-row {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .url-input {
+    flex: 1;
+    background: var(--black);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.85rem 1rem;
+    color: var(--white);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.78rem;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .url-input::placeholder { color: #444; }
+  .url-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(232,255,58,0.07);
+  }
+
+  .fetch-btn {
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    padding: 0.85rem 1.4rem;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.05rem;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    transition: transform 0.15s, opacity 0.15s;
+    white-space: nowrap;
+  }
+
+  .fetch-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+  .fetch-btn:active { transform: none; }
+  .fetch-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+
+  /* Status bar */
+  .status {
+    display: none;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.73rem;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    margin-bottom: 1.25rem;
+    border: 1px solid transparent;
+  }
+
+  .status.loading { display: flex; background: rgba(232,255,58,0.04); border-color: rgba(232,255,58,0.12); color: var(--accent); }
+  .status.error   { display: flex; background: rgba(255,68,68,0.06); border-color: rgba(255,68,68,0.18); color: var(--red); }
+  .status.success { display: flex; background: rgba(58,255,138,0.04); border-color: rgba(58,255,138,0.12); color: var(--green); }
+
+  .spinner {
+    width: 14px; height: 14px;
+    border: 2px solid rgba(232,255,58,0.2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Result */
+  .result { display: none; flex-direction: column; gap: 1.25rem; animation: up 0.3s ease; }
+  .result.visible { display: flex; }
+
+  @keyframes up {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Tweet preview */
+  .tweet-preview {
+    background: var(--black);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .tweet-thumb {
+    width: 100%;
+    max-height: 200px;
+    object-fit: cover;
+    display: block;
+    background: #111;
+  }
+
+  .tweet-body {
+    padding: 1rem;
+    display: flex;
+    gap: 0.75rem;
+  }
+
+  .avatar {
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    background: var(--border);
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+
+  .avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+  .tweet-meta { flex: 1; min-width: 0; }
+
+  .tweet-author {
+    font-size: 0.78rem;
+    font-weight: 500;
+    margin-bottom: 0.2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .tweet-handle { color: var(--muted); font-weight: 300; font-size: 0.72rem; }
+
+  .tweet-duration {
+    font-size: 0.65rem;
+    color: var(--accent);
+    background: rgba(232,255,58,0.08);
+    border: 1px solid rgba(232,255,58,0.15);
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    margin-left: auto;
+  }
+
+  .tweet-text {
+    font-size: 0.7rem;
+    color: #777;
+    line-height: 1.5;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  /* Quality list */
+  .quality-list { display: flex; flex-direction: column; gap: 0.5rem; }
+
+  .quality-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--black);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.85rem 1rem;
+    transition: border-color 0.2s;
+  }
+
+  .quality-item:hover { border-color: #3a3a3a; }
+
+  .q-left { display: flex; align-items: center; gap: 0.75rem; }
+
+  .q-badge {
+    background: rgba(232,255,58,0.1);
+    border: 1px solid rgba(232,255,58,0.2);
+    color: var(--accent);
+    font-size: 0.62rem;
+    font-weight: 500;
+    padding: 0.2rem 0.55rem;
+    border-radius: 4px;
+    letter-spacing: 0.05em;
+    min-width: 38px;
+    text-align: center;
+  }
+
+  .q-meta { font-size: 0.68rem; color: var(--muted); }
+  .q-meta strong { color: #aaa; }
+
+  .dl-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    padding: 0.45rem 1rem;
+    border-radius: 7px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background 0.15s, color 0.15s;
+  }
+
+  .dl-btn:hover { background: var(--accent); color: #000; }
+
+  /* Backend config notice */
+  .config-notice {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    background: rgba(232,255,58,0.04);
+    border: 1px solid rgba(232,255,58,0.12);
+    border-radius: 10px;
+    font-size: 0.68rem;
+    color: #888;
+    line-height: 1.7;
+  }
+
+  .config-notice strong { color: var(--accent); }
+
+  .config-notice code {
+    background: rgba(255,255,255,0.06);
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    font-size: 0.65rem;
+    color: #ccc;
+  }
+
+  /* Steps */
+  .steps-section { margin-top: 2rem; padding-top: 1.75rem; border-top: 1px solid var(--border); }
+  .steps-title { font-size: 0.62rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); margin-bottom: 1rem; text-align: center; }
+
+  .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+
+  .step { text-align: center; }
+  .step-num {
+    width: 28px; height: 28px;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.68rem; color: var(--accent);
+    margin: 0 auto 0.4rem;
+  }
+  .step-text { font-size: 0.62rem; color: var(--muted); line-height: 1.4; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <div class="logo">
+      <div class="logo-icon">𝕏</div>
+      <div class="logo-text">VIDEO<span>GET</span></div>
+    </div>
+    <p class="tagline">Powered by yt-dlp · Railway backend · 100% free</p>
+  </div>
+
+  <div class="card">
+    <label class="label">Paste X / Twitter post URL</label>
+    <div class="input-row">
+      <input class="url-input" id="urlInput" type="url"
+        placeholder="https://x.com/user/status/123456789..."
+        autocomplete="off" spellcheck="false" />
+      <button class="fetch-btn" id="fetchBtn" onclick="fetchVideo()">⬇ FETCH</button>
     </div>
 
-    <script>
-      // ⬇️ CHANGE THIS to your Railway URL after deploying
-      const BACKEND_URL = "https://web-production-8ae0d.up.railway.app";
+    <div class="status" id="status"></div>
+    <div class="result" id="result"></div>
 
-      function setStatus(type, msg) {
-        const el = document.getElementById("status");
-        el.className = "status " + type;
-        el.innerHTML =
-          type === "loading"
-            ? `<div class="spinner"></div><span>${msg}</span>`
-            : `<span>${type === "error" ? "✕" : "✓"}</span><span>${msg}</span>`;
-      }
+    <div class="config-notice">
+      ⚙️ <strong>Backend URL:</strong> Replace <code>YOUR_RAILWAY_URL</code> in the script below with your Railway app URL after deploying.
+      Example: <code>https://x-downloader.up.railway.app</code>
+    </div>
+  </div>
 
-      function formatSize(bytes) {
-        if (!bytes) return "Unknown size";
-        const mb = bytes / 1024 / 1024;
-        return mb > 1
-          ? mb.toFixed(1) + " MB"
-          : (bytes / 1024).toFixed(0) + " KB";
-      }
+  <div class="steps-section">
+    <div class="steps-title">How to use</div>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div class="step-text">Open the X post with a video</div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-text">Copy the post URL from your browser</div></div>
+      <div class="step"><div class="step-num">3</div><div class="step-text">Paste it above and click Fetch</div></div>
+      <div class="step"><div class="step-num">4</div><div class="step-text">Choose quality and download</div></div>
+    </div>
+  </div>
 
-      function formatDuration(secs) {
-        if (!secs) return null;
-        const m = Math.floor(secs / 60),
-          s = secs % 60;
-        return `${m}:${String(s).padStart(2, "0")}`;
-      }
+</div>
 
-      function renderResult(data) {
-        const result = document.getElementById("result");
-        const dur = formatDuration(data.duration);
+<script>
+  // ⬇️ CHANGE THIS to your Railway URL after deploying
+  const BACKEND_URL = 'https://web-production-8ae0d.up.railway.app';
 
-        const qualities = (data.videos || [])
-          .map(
-            (v, i) => `
+  function setStatus(type, msg) {
+    const el = document.getElementById('status');
+    el.className = 'status ' + type;
+    el.innerHTML = type === 'loading'
+      ? `<div class="spinner"></div><span>${msg}</span>`
+      : `<span>${type === 'error' ? '✕' : '✓'}</span><span>${msg}</span>`;
+  }
+
+  function formatSize(bytes) {
+    if (!bytes) return 'Unknown size';
+    const mb = bytes / 1024 / 1024;
+    return mb > 1 ? mb.toFixed(1) + ' MB' : (bytes / 1024).toFixed(0) + ' KB';
+  }
+
+  function formatDuration(secs) {
+    if (!secs) return null;
+    const m = Math.floor(secs / 60), s = secs % 60;
+    return `${m}:${String(s).padStart(2, '0')}`;
+  }
+
+  function renderResult(data) {
+    const result = document.getElementById('result');
+    const dur = formatDuration(data.duration);
+
+    const qualities = (data.videos || []).map((v, i) => `
       <div class="quality-item">
         <div class="q-left">
           <span class="q-badge">${v.label || v.quality}</span>
           <span class="q-meta">
-            <strong>${v.quality}</strong> · ${v.ext?.toUpperCase() || "MP4"} · ${formatSize(v.filesize)}
+            <strong>${v.quality}</strong> · ${v.ext?.toUpperCase() || 'MP4'} · ${formatSize(v.filesize)}
           </span>
         </div>
         <a class="dl-btn" href="${v.url}" target="_blank" rel="noopener" download>
           ↓ Download
         </a>
       </div>
-    `,
-          )
-          .join("");
+    `).join('');
 
-        result.innerHTML = `
+    result.innerHTML = `
       <div class="tweet-preview">
-        ${data.thumbnail ? `<img class="tweet-thumb" src="${data.thumbnail}" alt="thumbnail" onerror="this.style.display='none'">` : ""}
+        ${data.thumbnail ? `<img class="tweet-thumb" src="${data.thumbnail}" alt="thumbnail" onerror="this.style.display='none'">` : ''}
         <div class="tweet-body">
           <div class="avatar"></div>
           <div class="tweet-meta">
             <div class="tweet-author">
-              ${data.author || "Unknown"}
-              <span class="tweet-handle">${data.handle ? "@" + data.handle : ""}</span>
-              ${dur ? `<span class="tweet-duration">${dur}</span>` : ""}
+              ${data.author || 'Unknown'}
+              <span class="tweet-handle">${data.handle ? '@' + data.handle : ''}</span>
+              ${dur ? `<span class="tweet-duration">${dur}</span>` : ''}
             </div>
-            <div class="tweet-text">${data.text || ""}</div>
+            <div class="tweet-text">${data.text || ''}</div>
           </div>
         </div>
       </div>
@@ -481,63 +450,48 @@
       </div>
     `;
 
-        result.classList.add("visible");
+    result.classList.add('visible');
+  }
+
+  async function fetchVideo() {
+    const url = document.getElementById('urlInput').value.trim();
+    const btn = document.getElementById('fetchBtn');
+
+    if (!url) return setStatus('error', 'Please paste an X or Twitter URL first.');
+
+    const valid = /^https?:\/\/(www\.)?(twitter\.com|x\.com)\/.+\/status\/\d+/.test(url);
+    if (!valid) return setStatus('error', "That doesn't look like a valid X/Twitter post URL.");
+
+    if (BACKEND_URL === 'YOUR_RAILWAY_URL') {
+      return setStatus('error', 'Set your Railway backend URL in the script first. See setup instructions.');
+    }
+
+    document.getElementById('result').classList.remove('visible');
+    btn.disabled = true;
+    setStatus('loading', 'Fetching video info via yt-dlp...');
+
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/info?url=${encodeURIComponent(url)}`);
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        setStatus('error', data.error || 'Failed to fetch video info.');
+        return;
       }
 
-      async function fetchVideo() {
-        const url = document.getElementById("urlInput").value.trim();
-        const btn = document.getElementById("fetchBtn");
+      document.getElementById('status').className = 'status';
+      renderResult(data);
 
-        if (!url)
-          return setStatus("error", "Please paste an X or Twitter URL first.");
+    } catch (err) {
+      setStatus('error', 'Could not reach the backend. Is your Railway app running?');
+    } finally {
+      btn.disabled = false;
+    }
+  }
 
-        const valid =
-          /^https?:\/\/(www\.)?(twitter\.com|x\.com)\/.+\/status\/\d+/.test(
-            url,
-          );
-        if (!valid)
-          return setStatus(
-            "error",
-            "That doesn't look like a valid X/Twitter post URL.",
-          );
-
-        if (BACKEND_URL === "YOUR_RAILWAY_URL") {
-          return setStatus(
-            "error",
-            "Set your Railway backend URL in the script first. See setup instructions.",
-          );
-        }
-
-        document.getElementById("result").classList.remove("visible");
-        btn.disabled = true;
-        setStatus("loading", "Fetching video info via yt-dlp...");
-
-        try {
-          const res = await fetch(
-            `${BACKEND_URL}/api/info?url=${encodeURIComponent(url)}`,
-          );
-          const data = await res.json();
-
-          if (!res.ok || data.error) {
-            setStatus("error", data.error || "Failed to fetch video info.");
-            return;
-          }
-
-          document.getElementById("status").className = "status";
-          renderResult(data);
-        } catch (err) {
-          setStatus(
-            "error",
-            "Could not reach the backend. Is your Railway app running?",
-          );
-        } finally {
-          btn.disabled = false;
-        }
-      }
-
-      document.getElementById("urlInput").addEventListener("keydown", (e) => {
-        if (e.key === "Enter") fetchVideo();
-      });
-    </script>
-  </body>
+  document.getElementById('urlInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') fetchVideo();
+  });
+</script>
+</body>
 </html>
