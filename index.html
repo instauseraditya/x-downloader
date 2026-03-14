@@ -3,8 +3,22 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>X Video Downloader</title>
+<meta
+name="description"
+content="X Videos Downloader for free. XVidoesDownlaoder helps you to download any X video in any quality for free you just have to copy the link of the X post that contains video and then paste it in the input filed and click on the fetch button to download"
+/>
+<meta
+name="keywords"
+content="X Videos Downloader, X Videos Free Downloader, X(formerly Twitter) video downloader, free twitter video downloader, Save X videos locally, twitter video downloader free"
+/>
+<title>X Videos Downloader</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="shortcut icon" href="icon48.png" type="image/x-icon" />
+<script
+async
+src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9863243111120630"
+crossorigin="anonymous"
+></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
@@ -250,6 +264,31 @@
     result.classList.add('visible');
   }
 
+// ── Keep-alive ping ───────────────────────────────────────────────────────
+  // Pings Railway every 4 minutes so it never falls asleep while the page is open
+  async function pingBackend() {
+    try { await fetch(`${BACKEND_URL}/health`); } catch (_) {}
+  }
+  if (BACKEND_URL !== 'YOUR_RAILWAY_URL') {
+    pingBackend(); // ping immediately on page load to wake it up early
+    setInterval(pingBackend, 4 * 60 * 1000); // then every 4 minutes
+  }
+
+  // ── Wake-up helper ────────────────────────────────────────────────────────
+  async function fetchWithWakeup(url) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 25000);
+    try {
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timer);
+      return res;
+    } catch (err) {
+      clearTimeout(timer);
+      if (err.name === 'AbortError') throw new Error('timeout');
+      throw err;
+    }
+  }
+
   async function fetchVideo() {
     const url = document.getElementById('urlInput').value.trim();
     const btn = document.getElementById('fetchBtn');
@@ -261,16 +300,39 @@
 
     document.getElementById('result').classList.remove('visible');
     btn.disabled = true;
-    setStatus('loading', 'Fetching video info via yt-dlp...');
+
+    // Wake the backend with a quick ping first
+    setStatus('loading', 'Waking up server...');
+    try { await fetch(`${BACKEND_URL}/health`); } catch (_) {}
+
+    setStatus('loading', 'Fetching video info...');
 
     try {
-      const res = await fetch(`${BACKEND_URL}/api/info?url=${encodeURIComponent(url)}`);
+      let res;
+      try {
+        res = await fetchWithWakeup(`${BACKEND_URL}/api/info?url=${encodeURIComponent(url)}`);
+      } catch (err) {
+        if (err.message === 'timeout') {
+          // Server was sleeping — wait and retry once
+          setStatus('loading', 'Server is waking up, retrying...');
+          await new Promise(r => setTimeout(r, 6000));
+          res = await fetchWithWakeup(`${BACKEND_URL}/api/info?url=${encodeURIComponent(url)}`);
+        } else {
+          throw err;
+        }
+      }
+
       const data = await res.json();
       if (!res.ok || data.error) { setStatus('error', data.error || 'Failed to fetch video info.'); return; }
       document.getElementById('status').className = 'status';
       renderResult(data);
+
     } catch (err) {
-      setStatus('error', 'Could not reach the backend. Is your Railway app running?');
+      if (err.message === 'timeout') {
+        setStatus('error', 'Server took too long to respond. Wait 10 seconds and try again.');
+      } else {
+        setStatus('error', 'Could not reach the backend. Check your Railway dashboard.');
+      }
     } finally {
       btn.disabled = false;
     }
